@@ -42,4 +42,4 @@ for i, page in enumerate(pages):
     cv2.destroyAllWindows()
     t1.join()
     # sleep(2)
-    # os.remove(f"output{i}.mp3")
+    os.remove(f"output{i}.mp3")
