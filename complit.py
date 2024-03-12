@@ -118,7 +118,7 @@ def generate_character_description(pages, style, save_name):
         # print(f"Image URL: {image_url}")
         im = Image.open(requests.get(image_url, stream=True).raw)
         if colab:
-            display(Image(url=image_url, width=500))
+            display(im)
         else:
             im.show()
         print("---------------------------")
@@ -139,18 +139,27 @@ def generate_character_description(pages, style, save_name):
 # Define the function to update the character description
 def update_character_description(image_path):
     # This function sometimes fails because the payload is to large, consider resizing the image
+    im = Image.open(image_path)
+    # get width and height
+    width, height = im.size
+    # resize the image to 50% of the original
+    resize_factor = 0.5
+    im = im.resize((int(width*resize_factor), int(height*resize_factor)))
+    new_path = image_path.split(".")[0]+"-resized.png"
+    im.save(new_path)
     response = model_vision.generate_content(
     glm.Content(
         parts = [
             glm.Part(text=update_character_description_prompt),
             glm.Part(
                 inline_data=glm.Blob(
-                    mime_type='image/'+image_path.split(".")[-1],
-                    data=pathlib.Path(image_path).read_bytes()
+                    mime_type='image/'+new_path.split(".")[-1],
+                    data=pathlib.Path(new_path).read_bytes()
                 )
             ),
         ],
     ))
+    os.remove(new_path)
     description = response.text
     print(f"New Character Description: {description}")
     return description
@@ -186,7 +195,7 @@ def generate_image(page, character_description, num, style, gen_id="", save_name
         # print(f"Image URL: {image_url}")
         im = Image.open(requests.get(image_url, stream=True).raw)
         if colab:
-            display(Image(url=image_url, width=500))
+            display(im)
         else:
             im.show()
         print("---------------------------")
@@ -208,18 +217,27 @@ def generate_image(page, character_description, num, style, gen_id="", save_name
 # Define the function to get the style of the image
 # The style is used to maintain a consistent look throughout the story
 def get_style(image_path, style):
+    im = Image.open(image_path)
+    # get width and height
+    width, height = im.size
+    # resize the image to 50% of the original
+    resize_factor = 0.5
+    im = im.resize((int(width*resize_factor), int(height*resize_factor)))
+    new_path = image_path.split(".")[0]+"-resized.png"
+    im.save(new_path)
     response = model_vision.generate_content(
     glm.Content(
         parts = [
             glm.Part(text=f"Describe the drawing style of the image in detail. Talk about the color scheme, the texture, the line work. Be as detailed as possible. Describe any details that you would need to know to recreate another unrelated scene in the same style of the image without the original image. Here is a reference for style that would be valid: {style}. Limit your answer to 150 words."),
             glm.Part(
                 inline_data=glm.Blob(
-                    mime_type='image/'+image_path.split(".")[-1],
-                    data=pathlib.Path(image_path).read_bytes()
+                    mime_type='image/'+new_path.split(".")[-1],
+                    data=pathlib.Path(new_path).read_bytes()
                 )
             ),
         ],
     ))
+    os.remove(new_path)
     style = response.text
     print(f"New Style: {style}")
     return style
@@ -242,7 +260,7 @@ def text_to_image(pages, character_description, style, save=False, save_path="st
         # print(page)
         url, gen_id_all = generate_image(page, character_description, num, style, gen_id=gen_id, save_name=save_path)
         # coords = get_text_coordinates(url, page)
-        position = choose_corner("Stories/story8/image-2.png")
+        position = choose_corner(url)
         overlay_text(url, page, position)
         story.append({"text": page, "image_url": url})
         if i == 0:
@@ -406,5 +424,4 @@ def main():
     save_pdf(story, save_path)
 
 # Run the program
-if __name__ == "__main__":
-    main()
+main()
