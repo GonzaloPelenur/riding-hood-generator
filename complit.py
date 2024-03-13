@@ -44,10 +44,12 @@ if colab:
         return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
 
 # Input the color name and path to save the story
-color_input = "moonstruck"
-save_path = "Stories/story9/"
+# color_input = "moonstruck"
+# color_input = "hint-of-mint"
+# save_path = "Stories/story9/"
 pantone_colors_path = "pantone-colors-by-key.json"
 font_path = "Font/Dancing_Script/static/DancingScript-Bold.ttf"
+require_user_input = False
 
 # Create an instance of the OpenAI class and Gemini class to use the API
 
@@ -70,12 +72,12 @@ client = OpenAI(api_key = OPENAI_API_KEY)
 # Load colors and set initial prompts
 with open(pantone_colors_path) as f:
     pantone = json.load(f)
-color = pantone[color_input]
+# color = pantone[color_input]
 first = True
 reference_id = None
-initial_style = f"Create an image for a children’s picture book in the style of Bruno Munari. The drawing style of the image should be simple and hand drawn with pencil. It is, characterized by its use of bold outlines, a simple and muted color scheme centered around the color of'{color['Name']}', and textural patterns that impart depth. Avoid using many colors. Create simple aesthetic that is appealing in children's literature."
-initial_chdescription_prompt = f"Write a detailed description of physical appearance the character 'Little {color['Name']} Riding Hood' for a picture book. The character should be wearing a hooded cloak in the specific color {color['Name']}, emphasize that the hood should be of that color. The character should be a child. The description should be detailed and include the character's hair color, eye color, clothing style, clothes color, and everything else that is relevant to the character's appearance. Do not use many colors apart from the color {color['Name']}. Make your description concise and detailed only in the physical aspects. Do not mention anything other than the physical appearance of the character. Make the style look simple and easy to replicate. Limit your answer to 150 words."
-update_character_description_prompt = f"In the image provided there is character named 'Little {color['Name']} Riding Hood' wearing a hood. The character should a child wearing a hooded cloak in the specific color {color['Name']}.  Describe the style of that character in detail. The description should be detailed and include the character's racial features, skin color, height, hair color, eye color, clothing style, clothes color, and everything else that is relevant to the character's appearance. Be very specific about physical details, do not use abstract concepts. Talk about the color scheme, the texture, the line work, and the overall feel of the character. Write your answer in 100 words."
+# initial_style = f"Create an image for a children’s picture book in the style of Bruno Munari. The drawing style of the image should be simple and hand drawn with pencil. It is, characterized by its use of bold outlines, a simple and muted color scheme centered around the color of'{color['Name']}', and textural patterns that impart depth. Avoid using many colors. Create simple aesthetic that is appealing in children's literature."
+# initial_chdescription_prompt = f"Write a detailed description of physical appearance the character 'Little {color['Name']} Riding Hood' for a picture book. The character should be wearing a hooded cloak in the specific color {color['Name']}, emphasize that the hood should be of that color. The character should be a child. The description should be detailed and include the character's hair color, eye color, clothing style, clothes color, and everything else that is relevant to the character's appearance. Do not use many colors apart from the color {color['Name']}. Make your description concise and detailed only in the physical aspects. Do not mention anything other than the physical appearance of the character. Make the style look simple and easy to replicate. Limit your answer to 150 words."
+# update_character_description_prompt = f"In the image provided there is character named 'Little {color['Name']} Riding Hood' wearing a hood. The character should a child wearing a hooded cloak in the specific color {color['Name']}.  Describe the style of that character in detail. The description should be detailed and include the character's racial features, skin color, height, hair color, eye color, clothing style, clothes color, and everything else that is relevant to the character's appearance. Be very specific about physical details, do not use abstract concepts. Talk about the color scheme, the texture, the line work, and the overall feel of the character. Write your answer in 100 words."
 
 # Define the function to generate the story
 def generate_story(color):
@@ -117,14 +119,18 @@ def generate_character_description(pages, style, save_name):
         image_url = response.data[0].url
         # print(f"Image URL: {image_url}")
         im = Image.open(requests.get(image_url, stream=True).raw)
-        if colab:
-            display(im)
-        else:
-            im.show()
+        if require_user_input:
+            if colab:
+                display(im)
+            else:
+                im.show()
         print("---------------------------")
         print("USER INPUT REQUIRED")
         print("Do you like the image? (y/n)")
-        user_input = input("response: ")
+        if require_user_input:
+            user_input = input("response: ")
+        else:
+            user_input = "y"
         print("---------------------------")
         if user_input != "n":
             break
@@ -194,14 +200,18 @@ def generate_image(page, character_description, num, style, gen_id="", save_name
         image_url = response.data[0].url
         # print(f"Image URL: {image_url}")
         im = Image.open(requests.get(image_url, stream=True).raw)
-        if colab:
-            display(im)
-        else:
-            im.show()
+        if require_user_input:
+            if colab:
+                display(im)
+            else:
+                im.show()
         print("---------------------------")
         print("USER INPUT REQUIRED")
         print("Do you like the image? (y/n)")
-        user_input = input("response: ")
+        if require_user_input:
+            user_input = input("response: ")
+        else:
+            user_input = "y"
         print("---------------------------")
         if user_input != "n":
             break
@@ -250,8 +260,10 @@ def get_scene_decritpion(page,style):
     return description
 
 # This function does most of the work, calling other functions to generate the story
-def text_to_image(pages, character_description, style, save=False, save_path="story"):
-    story = [{"text": "This is the story of Little Banana Crepe Riding Hood", "image_url": save_path+"image-0.png"}]
+def text_to_image(pages, character_description, style, save=True, save_path="story"):
+    first_page = f"This is the story of Little {color['Name']} Riding Hood"
+    audio_name = save_audio(first_page, save_path, 0)
+    story = [{"text": first_page, "image_url": save_path+"image-0.png", "audio_path": audio_name}]
     style = get_style(story[0]["image_url"], style)
     gen_id = ""
     for i,page in enumerate(pages):
@@ -260,9 +272,22 @@ def text_to_image(pages, character_description, style, save=False, save_path="st
         # print(page)
         url, gen_id_all = generate_image(page, character_description, num, style, gen_id=gen_id, save_name=save_path)
         # coords = get_text_coordinates(url, page)
-        position = choose_corner(url)
+        counter = 0
+        while True:
+            if counter == 5:
+                print("Failed to get coordinates, using top-left")
+                position = "top-left"
+                break
+            try: 
+                position = choose_corner(url)
+                break
+            except Exception as e:
+                print(e)
+                print("Failed to get coordinates, trying again")
+                counter += 1
         overlay_text(url, page, position)
-        story.append({"text": page, "image_url": url})
+        audio_name = save_audio(page, save_path, num)
+        story.append({"text": page, "image_url": url, "audio_path": audio_name})
         if i == 0:
             style = get_style(url, style)
             gen_id = gen_id_all
@@ -386,6 +411,7 @@ def choose_corner(image_url):
         "max_tokens": 300
     }
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    print(response.json())
     return response.json()["choices"][0]["message"]["content"]
 def split_image(image_url):
     # Crop the image into four pieces
@@ -415,13 +441,117 @@ def get_gen_id(image_url):
     print(f"Gen ID: {gen_id}")
     return gen_id
 
-# Define the main function to run the program
-def main():
+# Define the function to create the next story subdirectory
+def create_next_story_subdirectory(stories_dir='Stories'):
+    # Make sure the Stories directory exists
+    if not os.path.exists(stories_dir):
+        print(f"The directory '{stories_dir}' does not exist. Creating it...")
+        os.makedirs(stories_dir)
+    
+    # List all items in the Stories directory
+    items = os.listdir(stories_dir)
+    
+    # Filter out items that are not directories following the naming pattern 'storyX'
+    story_dirs = [item for item in items if os.path.isdir(os.path.join(stories_dir, item)) and item.startswith('story')]
+    
+    # Extract the numbers from the directory names and find the highest one
+    last_num = 0
+    for dir_name in story_dirs:
+        try:
+            num = int(dir_name.replace('story', ''))
+            last_num = max(last_num, num)
+        except ValueError:
+            # Skip any directories that don't strictly follow the 'storyX' pattern
+            continue
+    
+    # The name for the new directory
+    new_dir_name = f"story{last_num + 1}"
+    new_dir_path = os.path.join(stories_dir, new_dir_name)
+    
+    # Create the new directory
+    os.makedirs(new_dir_path, exist_ok=True)
+    new_dir_path += '/'
+    print(f"Created new directory: {new_dir_path}")
+    return new_dir_path
+
+def save_audio(text, save_path, num):
+    audio_name = save_path+f"audio-{num}.mp3"
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="nova",
+        input=text,
+    )
+    response.stream_to_file(audio_name)
+    return audio_name
+
+def create_html(story, save_path):
+    """
+    <html>
+        <head>
+            <title>Moonstruck</title>
+        </head>
+        <body>
+            <h1>Resources</h1>
+            <a href="/static/little-moonstruck-riding-hood2.pdf" download="little-moonstruck-riding-hood2.pdf" style="margin-bottom:20px;display:inline-block;background-color:#4CAF50;color:white;padding:14px 20px;text-align:center;text-decoration:none;display:inline-block;font-size:16px;border-radius:8px;">Download PDF</a>
+            <br>
+            <h1>Look ma! HTML!</h1>
+            <img src="/static/image-0.png" alt="Image">
+            <audio controls>
+                <source src="/static/output0.mp3" type="audio/mp3">
+                Your browser does not support the audio element.
+            </audio>
+        </body>
+    </html>
+    """
+    html = f"""
+    <html>
+        <head>
+            <title>{color["Name"]}</title>
+        </head>
+        <body>
+            <h1>Resources</h1>
+            <a href="/static/{save_path}little-{color_input}-riding-hood.pdf" download="little-{color_input}-riding-hood.pdf" style="margin-bottom:20px;display:inline-block;background-color:#4CAF50;color:white;padding:14px 20px;text-align:center;text-decoration:none;display:inline-block;font-size:16px;border-radius:8px;">Download PDF</a>
+            <br>
+            <h1>Little {color["Name"]} Riding Hood</h1>
+    """
+    for page in story:
+        html += f"""
+            <img src="/static/{page["image_url"]}" alt="Image">
+            <audio controls>
+                <source src="/static/{page["audio_path"]}" type="audio/mp3">
+                Your browser does not support the audio element.
+            </audio>
+        """
+    html += """
+            </body>
+        </html>
+    """
+    return html
+
+def riding_hood(c):
+    print(c)
+    global color_input
+    global color
+    global initial_style
+    global initial_chdescription_prompt
+    global update_character_description_prompt
+    color_input = c
+    color = pantone[color_input]
+    initial_style = f"Create an image for a children’s picture book in the style of Bruno Munari. The drawing style of the image should be simple and hand drawn with pencil. It is, characterized by its use of bold outlines, a simple and muted color scheme centered around the color of'{color['Name']}', and textural patterns that impart depth. Avoid using many colors. Create simple aesthetic that is appealing in children's literature."
+    initial_chdescription_prompt = f"Write a detailed description of physical appearance the character 'Little {color['Name']} Riding Hood' for a picture book. The character should be wearing a hooded cloak in the specific color {color['Name']}, emphasize that the hood should be of that color. The character should be a child. The description should be detailed and include the character's hair color, eye color, clothing style, clothes color, and everything else that is relevant to the character's appearance. Do not use many colors apart from the color {color['Name']}. Make your description concise and detailed only in the physical aspects. Do not mention anything other than the physical appearance of the character. Make the style look simple and easy to replicate. Limit your answer to 150 words."
+    update_character_description_prompt = f"In the image provided there is character named 'Little {color['Name']} Riding Hood' wearing a hood. The character should a child wearing a hooded cloak in the specific color {color['Name']}.  Describe the style of that character in detail. The description should be detailed and include the character's racial features, skin color, height, hair color, eye color, clothing style, clothes color, and everything else that is relevant to the character's appearance. Be very specific about physical details, do not use abstract concepts. Talk about the color scheme, the texture, the line work, and the overall feel of the character. Write your answer in 100 words."
     style = initial_style
+    save_path = create_next_story_subdirectory()
     pages = generate_story(color)
     character = generate_character_description(pages, style, save_path)
     story = text_to_image(pages, character, style, save=True, save_path=save_path)
     save_pdf(story, save_path)
+    html = create_html(story, save_path)
+    return html
+
+# Define the main function to run the program
+def main():
+    riding_hood("moonstruck")
 
 # Run the program
-main()
+# main()
